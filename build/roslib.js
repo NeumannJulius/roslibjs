@@ -5262,6 +5262,7 @@ var ActionHandle = require("./Actions");
 
 class GoalWrapper extends EventEmitter2 {
     constructor(actionhandler, goal) {
+        super();
         var that = this;
         this.actionhandler = actionhandler;
         this.goal = goal;
