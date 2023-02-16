@@ -6,14 +6,15 @@ var ActionGoal = require("./ActionGoal");
 var ActionHandle = require("./Actions");
 
 function GoalWrapper(actionhandler,goal){
+    var that = this;
     this.actionhandler = actionhandler;
     this.goal = goal;
 
     this._goalCallback = function (data) {
       if (data.response_type === "feedback") {
-        this.emit("feedback", new ActionFeedback(data));
+        that.emit("feedback", new ActionFeedback(data));
       } else if (data.response_type === "result" || "error") {
-        this.emit("result", new ActionResult(data));
+        that.emit("result", new ActionResult(data));
       }
     };
 
