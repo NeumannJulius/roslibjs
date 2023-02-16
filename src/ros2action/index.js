@@ -5,7 +5,8 @@ var actionhandle = module.exports = {
     ActionHandle: require('./Actions'),
     ActionGoal: require('./ActionGoal'),
     ActionResult: require('./ActionResult'),
-    ActionFeedback: require('./ActionFeedback')
+    ActionFeedback: require('./ActionFeedback'),
+    GoalWrapper: require('./GoalWrapper')
 };
 
 mixin(Ros, ['Actions'], actionhandle);

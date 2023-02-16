@@ -2720,7 +2720,7 @@ assign(ROSLIB, require('./urdf'));
 
 module.exports = ROSLIB;
 
-},{"./actionlib":14,"./core":23,"./math":28,"./ros2action":34,"./tf":36,"./urdf":48,"object-assign":3}],9:[function(require,module,exports){
+},{"./actionlib":14,"./core":23,"./math":28,"./ros2action":35,"./tf":37,"./urdf":49,"object-assign":3}],9:[function(require,module,exports){
 (function (global){(function (){
 global.ROSLIB = require('./RosLib');
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
@@ -4269,7 +4269,7 @@ Ros.prototype.getTopicsAndRawTypes = function(callback, failedCallback) {
 
 module.exports = Ros;
 
-},{"../util/workerSocket":54,"./Service":18,"./ServiceRequest":19,"./SocketAdapter.js":21,"eventemitter2":2,"object-assign":3,"ws":51}],18:[function(require,module,exports){
+},{"../util/workerSocket":55,"./Service":18,"./ServiceRequest":19,"./SocketAdapter.js":21,"eventemitter2":2,"object-assign":3,"ws":52}],18:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Brandon Alexander - baalexander@gmail.com
@@ -4566,7 +4566,7 @@ function SocketAdapter(client) {
 
 module.exports = SocketAdapter;
 
-},{"../util/cborTypedArrayTags":49,"../util/decompressPng":53,"cbor-js":1}],22:[function(require,module,exports){
+},{"../util/cborTypedArrayTags":50,"../util/decompressPng":54,"cbor-js":1}],22:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Brandon Alexander - baalexander@gmail.com
@@ -5253,6 +5253,89 @@ module.exports = ActionHandle;
 
 
 },{"../core/Service":18,"./ActionFeedback":30,"./ActionGoal":31,"./ActionResult":32,"eventemitter2":2,"object-assign":3}],34:[function(require,module,exports){
+var ActionResult = require("./ActionResult");
+var ActionFeedback = require("./ActionFeedback");
+var Service = require('../core/Service');
+var EventEmitter2 = require("eventemitter2").EventEmitter2;
+var ActionGoal = require("./ActionGoal");
+var ActionHandle = require("./Actions");
+
+function GoalWrapper(actionhandler,value){
+    this.actionhandler = actionhandler;
+    this.goal = ActionGoal(value);
+
+    this._goalCallback = function (data) {
+      if (data.response_type === "feedback") {
+        this.emit("feedback", new ActionFeedback(data));
+      } else if (data.response_type === "result" || "error") {
+        this.emit("result", new ActionResult(data));
+      }
+    };
+
+    this.on("feedback", function (msg) {
+      //console.log("feedback", msg.values);
+      that.feedback = msg.values;
+    })
+  
+    this.on("result", function (msg) {
+      console.log("result", msg);
+      that.status = msg.values;
+    })
+
+    this.cancel = new Service({
+      ros: this.actionhandler.ros,
+      name: this.actionhandler.name + '/_action/cancel_goal',
+      messageType: 'action_msgs/srv/CancelGoal'
+    });
+
+}
+
+
+GoalWrapper.prototype.__proto__ = EventEmitter2.prototype;
+
+GoalWrapper.prototype.sendGoal = function (callback, feedbackCallback) {
+
+  if (typeof callback === "function") {
+    this.on("result", callback);
+  }
+
+  if (typeof feedbackCallback === "function") {
+    this.on("feedback", feedbackCallback);
+  }
+
+  this.goalid =
+    "create_goal:" + this.actionhandler.name + ":" + ++this.actionhandler.ros.idCounter;
+  this.actionhandler.ros.on(this.goalid, this._messageCallback);
+
+  var call = {
+    op: "send_goal",
+    feedback: true,
+    id: this.goalid,
+    action_name: this.actionhandler.name,
+    action_type: this.actionhandler.actionType,
+    goal_msg: this.goal,
+  };
+  this.actionhandler.ros.callOnConnection(call);
+
+}
+
+GoalWrapper.prototype.cancelGoal = function () {
+
+  var call = {
+    op: "cancel_goal",
+    action_name: this.actionhandler.name,
+    id: this.goalid,
+  };
+  this.actionhandler.ros.callOnConnection(call);
+
+}
+
+
+
+
+
+module.exports = GoalWrapper;
+},{"../core/Service":18,"./ActionFeedback":30,"./ActionGoal":31,"./ActionResult":32,"./Actions":33,"eventemitter2":2}],35:[function(require,module,exports){
 var Ros = require('../core/Ros');
 var mixin = require('../mixin');
 
@@ -5260,12 +5343,13 @@ var actionhandle = module.exports = {
     ActionHandle: require('./Actions'),
     ActionGoal: require('./ActionGoal'),
     ActionResult: require('./ActionResult'),
-    ActionFeedback: require('./ActionFeedback')
+    ActionFeedback: require('./ActionFeedback'),
+    GoalWrapper: require('./GoalWrapper')
 };
 
 mixin(Ros, ['Actions'], actionhandle);
 
-},{"../core/Ros":17,"../mixin":29,"./ActionFeedback":30,"./ActionGoal":31,"./ActionResult":32,"./Actions":33}],35:[function(require,module,exports){
+},{"../core/Ros":17,"../mixin":29,"./ActionFeedback":30,"./ActionGoal":31,"./ActionResult":32,"./Actions":33,"./GoalWrapper":34}],36:[function(require,module,exports){
 /**
  * @fileOverview
  * @author David Gossow - dgossow@willowgarage.com
@@ -5499,7 +5583,7 @@ TFClient.prototype.dispose = function() {
 
 module.exports = TFClient;
 
-},{"../actionlib/ActionClient":10,"../actionlib/Goal":12,"../core/Service.js":18,"../core/ServiceRequest.js":19,"../core/Topic.js":22,"../math/Transform":26}],36:[function(require,module,exports){
+},{"../actionlib/ActionClient":10,"../actionlib/Goal":12,"../core/Service.js":18,"../core/ServiceRequest.js":19,"../core/Topic.js":22,"../math/Transform":26}],37:[function(require,module,exports){
 var Ros = require('../core/Ros');
 var mixin = require('../mixin');
 
@@ -5508,7 +5592,7 @@ var tf = module.exports = {
 };
 
 mixin(Ros, ['TFClient'], tf);
-},{"../core/Ros":17,"../mixin":29,"./TFClient":35}],37:[function(require,module,exports){
+},{"../core/Ros":17,"../mixin":29,"./TFClient":36}],38:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Benjamin Pitzer - ben.pitzer@gmail.com
@@ -5540,7 +5624,7 @@ function UrdfBox(options) {
 
 module.exports = UrdfBox;
 
-},{"../math/Vector3":27,"./UrdfTypes":46}],38:[function(require,module,exports){
+},{"../math/Vector3":27,"./UrdfTypes":47}],39:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Benjamin Pitzer - ben.pitzer@gmail.com
@@ -5565,7 +5649,7 @@ function UrdfColor(options) {
 
 module.exports = UrdfColor;
 
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Benjamin Pitzer - ben.pitzer@gmail.com
@@ -5589,7 +5673,7 @@ function UrdfCylinder(options) {
 
 module.exports = UrdfCylinder;
 
-},{"./UrdfTypes":46}],40:[function(require,module,exports){
+},{"./UrdfTypes":47}],41:[function(require,module,exports){
 /**
  * @fileOverview
  * @author David V. Lu!! - davidvlu@gmail.com
@@ -5682,7 +5766,7 @@ function UrdfJoint(options) {
 
 module.exports = UrdfJoint;
 
-},{"../math/Pose":24,"../math/Quaternion":25,"../math/Vector3":27}],41:[function(require,module,exports){
+},{"../math/Pose":24,"../math/Quaternion":25,"../math/Vector3":27}],42:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Benjamin Pitzer - ben.pitzer@gmail.com
@@ -5712,7 +5796,7 @@ function UrdfLink(options) {
 
 module.exports = UrdfLink;
 
-},{"./UrdfVisual":47}],42:[function(require,module,exports){
+},{"./UrdfVisual":48}],43:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Benjamin Pitzer - ben.pitzer@gmail.com
@@ -5762,7 +5846,7 @@ UrdfMaterial.prototype.assign = function(obj) {
 
 module.exports = UrdfMaterial;
 
-},{"./UrdfColor":38,"object-assign":3}],43:[function(require,module,exports){
+},{"./UrdfColor":39,"object-assign":3}],44:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Benjamin Pitzer - ben.pitzer@gmail.com
@@ -5800,7 +5884,7 @@ function UrdfMesh(options) {
 
 module.exports = UrdfMesh;
 
-},{"../math/Vector3":27,"./UrdfTypes":46}],44:[function(require,module,exports){
+},{"../math/Vector3":27,"./UrdfTypes":47}],45:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Benjamin Pitzer - ben.pitzer@gmail.com
@@ -5897,7 +5981,7 @@ function UrdfModel(options) {
 
 module.exports = UrdfModel;
 
-},{"./UrdfJoint":40,"./UrdfLink":41,"./UrdfMaterial":42,"@xmldom/xmldom":50}],45:[function(require,module,exports){
+},{"./UrdfJoint":41,"./UrdfLink":42,"./UrdfMaterial":43,"@xmldom/xmldom":51}],46:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Benjamin Pitzer - ben.pitzer@gmail.com
@@ -5920,7 +6004,7 @@ function UrdfSphere(options) {
 
 module.exports = UrdfSphere;
 
-},{"./UrdfTypes":46}],46:[function(require,module,exports){
+},{"./UrdfTypes":47}],47:[function(require,module,exports){
 module.exports = {
 	URDF_SPHERE : 0,
 	URDF_BOX : 1,
@@ -5928,7 +6012,7 @@ module.exports = {
 	URDF_MESH : 3
 };
 
-},{}],47:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Benjamin Pitzer - ben.pitzer@gmail.com
@@ -6060,7 +6144,7 @@ function UrdfVisual(options) {
 
 module.exports = UrdfVisual;
 
-},{"../math/Pose":24,"../math/Quaternion":25,"../math/Vector3":27,"./UrdfBox":37,"./UrdfCylinder":39,"./UrdfMaterial":42,"./UrdfMesh":43,"./UrdfSphere":45}],48:[function(require,module,exports){
+},{"../math/Pose":24,"../math/Quaternion":25,"../math/Vector3":27,"./UrdfBox":38,"./UrdfCylinder":40,"./UrdfMaterial":43,"./UrdfMesh":44,"./UrdfSphere":46}],49:[function(require,module,exports){
 module.exports = require('object-assign')({
     UrdfBox: require('./UrdfBox'),
     UrdfColor: require('./UrdfColor'),
@@ -6073,7 +6157,7 @@ module.exports = require('object-assign')({
     UrdfVisual: require('./UrdfVisual')
 }, require('./UrdfTypes'));
 
-},{"./UrdfBox":37,"./UrdfColor":38,"./UrdfCylinder":39,"./UrdfLink":41,"./UrdfMaterial":42,"./UrdfMesh":43,"./UrdfModel":44,"./UrdfSphere":45,"./UrdfTypes":46,"./UrdfVisual":47,"object-assign":3}],49:[function(require,module,exports){
+},{"./UrdfBox":38,"./UrdfColor":39,"./UrdfCylinder":40,"./UrdfLink":42,"./UrdfMaterial":43,"./UrdfMesh":44,"./UrdfModel":45,"./UrdfSphere":46,"./UrdfTypes":47,"./UrdfVisual":48,"object-assign":3}],50:[function(require,module,exports){
 'use strict';
 
 var UPPER32 = Math.pow(2, 32);
@@ -6194,20 +6278,20 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = cborTypedArrayTagger;
 }
 
-},{}],50:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 exports.DOMImplementation = window.DOMImplementation;
 exports.XMLSerializer = window.XMLSerializer;
 exports.DOMParser = window.DOMParser;
 
-},{}],51:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 module.exports = typeof window !== 'undefined' ? window.WebSocket : WebSocket;
 
-},{}],52:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 /* global document */
 module.exports = function Canvas() {
 	return document.createElement('canvas');
 };
-},{}],53:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 /**
  * @fileOverview
  * @author Graeme Yeates - github.com/megawac
@@ -6265,7 +6349,7 @@ function decompressPng(data, callback) {
 
 module.exports = decompressPng;
 
-},{"canvas":52}],54:[function(require,module,exports){
+},{"canvas":53}],55:[function(require,module,exports){
 try {
     var work = require('webworkify');
 } catch(ReferenceError) {
@@ -6316,7 +6400,7 @@ WorkerSocket.prototype.close = function() {
 
 module.exports = WorkerSocket;
 
-},{"./workerSocketImpl":55,"webworkify":7,"webworkify-webpack":6}],55:[function(require,module,exports){
+},{"./workerSocketImpl":56,"webworkify":7,"webworkify-webpack":6}],56:[function(require,module,exports){
 var WebSocket = WebSocket || require('ws');
 
 module.exports = function(self) {
@@ -6366,4 +6450,4 @@ module.exports = function(self) {
   });
 };
 
-},{"ws":51}]},{},[9]);
+},{"ws":52}]},{},[9]);
