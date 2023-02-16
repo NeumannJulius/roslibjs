@@ -5260,9 +5260,9 @@ var EventEmitter2 = require("eventemitter2").EventEmitter2;
 var ActionGoal = require("./ActionGoal");
 var ActionHandle = require("./Actions");
 
-function GoalWrapper(actionhandler,value){
+function GoalWrapper(actionhandler,goal){
     this.actionhandler = actionhandler;
-    this.goal = ActionGoal(value);
+    this.goal = goal;
 
     this._goalCallback = function (data) {
       if (data.response_type === "feedback") {
