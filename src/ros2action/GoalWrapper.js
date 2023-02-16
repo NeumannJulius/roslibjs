@@ -5,79 +5,73 @@ var EventEmitter2 = require("eventemitter2").EventEmitter2;
 var ActionGoal = require("./ActionGoal");
 var ActionHandle = require("./Actions");
 
-function GoalWrapper(actionhandler,goal){
-    var that = this;
-    this.actionhandler = actionhandler;
-    this.goal = goal;
+class GoalWrapper extends EventEmitter2 {
+    constructor(actionhandler, goal) {
+        var that = this;
+        this.actionhandler = actionhandler;
+        this.goal = goal;
 
-    this._goalCallback = function (data) {
-      if (data.response_type === "feedback") {
-        that.emit("feedback", new ActionFeedback(data));
-      } else if (data.response_type === "result" || "error") {
-        that.emit("result", new ActionResult(data));
-      }
-    };
+        this._goalCallback = function (data) {
+            if (data.response_type === "feedback") {
+                that.emit("feedback", new ActionFeedback(data));
+            } else if (data.response_type === "result" || "error") {
+                that.emit("result", new ActionResult(data));
+            }
+        };
 
-    this.on("feedback", function (msg) {
-      //console.log("feedback", msg.values);
-      that.feedback = msg.values;
-    })
-  
-    this.on("result", function (msg) {
-      console.log("result", msg);
-      that.status = msg.values;
-    })
+        this.on("feedback", function (msg) {
+            //console.log("feedback", msg.values);
+            that.feedback = msg.values;
+        });
 
-    this.cancel = new Service({
-      ros: this.actionhandler.ros,
-      name: this.actionhandler.name + '/_action/cancel_goal',
-      messageType: 'action_msgs/srv/CancelGoal'
-    });
+        this.on("result", function (msg) {
+            console.log("result", msg);
+            that.status = msg.values;
+        });
 
-}
+        this.cancel = new Service({
+            ros: this.actionhandler.ros,
+            name: this.actionhandler.name + '/_action/cancel_goal',
+            messageType: 'action_msgs/srv/CancelGoal'
+        });
 
+    }
+    sendGoal(callback, feedbackCallback) {
 
-GoalWrapper.prototype.__proto__ = EventEmitter2.prototype;
+        if (typeof callback === "function") {
+            this.on("result", callback);
+        }
 
-GoalWrapper.prototype.sendGoal = function (callback, feedbackCallback) {
+        if (typeof feedbackCallback === "function") {
+            this.on("feedback", feedbackCallback);
+        }
 
-  if (typeof callback === "function") {
-    this.on("result", callback);
-  }
+        this.goalid =
+            "create_goal:" + this.actionhandler.name + ":" + ++this.actionhandler.ros.idCounter;
+        this.actionhandler.ros.on(this.goalid, this._messageCallback);
 
-  if (typeof feedbackCallback === "function") {
-    this.on("feedback", feedbackCallback);
-  }
+        var call = {
+            op: "send_goal",
+            feedback: true,
+            id: this.goalid,
+            action_name: this.actionhandler.name,
+            action_type: this.actionhandler.actionType,
+            goal_msg: this.goal,
+        };
+        this.actionhandler.ros.callOnConnection(call);
 
-  this.goalid =
-    "create_goal:" + this.actionhandler.name + ":" + ++this.actionhandler.ros.idCounter;
-  this.actionhandler.ros.on(this.goalid, this._messageCallback);
+    }
+    cancelGoal() {
 
-  var call = {
-    op: "send_goal",
-    feedback: true,
-    id: this.goalid,
-    action_name: this.actionhandler.name,
-    action_type: this.actionhandler.actionType,
-    goal_msg: this.goal,
-  };
-  this.actionhandler.ros.callOnConnection(call);
+        var call = {
+            op: "cancel_goal",
+            action_name: this.actionhandler.name,
+            id: this.goalid,
+        };
+        this.actionhandler.ros.callOnConnection(call);
 
-}
-
-GoalWrapper.prototype.cancelGoal = function () {
-
-  var call = {
-    op: "cancel_goal",
-    action_name: this.actionhandler.name,
-    id: this.goalid,
-  };
-  this.actionhandler.ros.callOnConnection(call);
-
-}
-
-
-
-
+    }
+};
+// GoalWrapper.prototype.__proto__ = EventEmitter2.prototype;
 
 module.exports = GoalWrapper;
