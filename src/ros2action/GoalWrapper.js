@@ -49,7 +49,7 @@ class GoalWrapper extends EventEmitter2 {
 
         this.goalid =
             "create_goal:" + this.actionhandler.name + ":" + ++this.actionhandler.ros.idCounter;
-        this.actionhandler.ros.on(this.goalid, this._messageCallback);
+        this.actionhandler.ros.on(this.goalid, this._goalCallback);
 
         var call = {
             op: "send_goal",
