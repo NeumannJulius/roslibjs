@@ -5327,6 +5327,17 @@ class GoalWrapper extends EventEmitter2 {
         this.actionhandler.ros.callOnConnection(call);
 
     }
+
+    cancelSingleGoal() {
+
+        var call = {
+            op: "cancel_single_goal",
+            action_name: this.actionhandler.name,
+            id: this.goalid,
+        };
+        this.actionhandler.ros.callOnConnection(call);
+    }
+
 };
 // GoalWrapper.prototype.__proto__ = EventEmitter2.prototype;
 
